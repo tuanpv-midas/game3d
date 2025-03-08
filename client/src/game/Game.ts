@@ -198,10 +198,10 @@ export class Game {
 
     if (this.isGameActive) {
       // Update car and bullets (car update will call weaponSystem.update)
-      this.car.update(delta);
+      this.car.update(delta, this.terrain);
       // Make sure enemies array exists before using forEach
       if (this.enemies && Array.isArray(this.enemies)) {
-        this.enemies.forEach(enemy => enemy.update?.(delta));
+        this.enemies.forEach(enemy => enemy.update?.(delta, this.terrain));
       }
       this.car.updateBullets(delta, this.terrain);
 

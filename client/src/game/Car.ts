@@ -106,7 +106,7 @@ export class Car {
     return this.bullets;
   }
 
-  public update(delta: number) {
+  public update(delta: number, terrain?: any) {
     if (!this.healthSystem.isAlive()) return;
 
     // Update weapon system if available
@@ -120,6 +120,31 @@ export class Car {
     // Apply velocity to position with collision check
     const nextPosition = this.mesh.position.clone().add(this.velocity.clone().multiplyScalar(delta));
 
+    // Check for obstacle collision if terrain is provided
+    if (terrain && typeof terrain.checkCollision === 'function') {
+      // Create a prediction box for the car's next position
+      const carBoundingBox = new THREE.Box3().setFromObject(this.mesh);
+      const carSize = new THREE.Vector3();
+      carBoundingBox.getSize(carSize);
+      
+      // Check collision at next position with a slightly smaller bounding box for smoother gameplay
+      const collisionPoints = [
+        new THREE.Vector3(nextPosition.x + carSize.x * 0.4, nextPosition.y, nextPosition.z + carSize.z * 0.4),
+        new THREE.Vector3(nextPosition.x - carSize.x * 0.4, nextPosition.y, nextPosition.z + carSize.z * 0.4),
+        new THREE.Vector3(nextPosition.x + carSize.x * 0.4, nextPosition.y, nextPosition.z - carSize.z * 0.4),
+        new THREE.Vector3(nextPosition.x - carSize.x * 0.4, nextPosition.y, nextPosition.z - carSize.z * 0.4),
+        new THREE.Vector3(nextPosition.x, nextPosition.y, nextPosition.z)
+      ];
+      
+      // Check if any of these points hit an obstacle
+      for (const point of collisionPoints) {
+        if (terrain.checkCollision(point)) {
+          this.handleCollision();
+          return; // Skip position update after collision
+        }
+      }
+    }
+    
     // Collision recovery with better bounce-back
     if (this.collisionRecoveryTime > 0) {
       this.collisionRecoveryTime -= delta;
@@ -349,11 +374,74 @@ export class Car {
     // Start collision recovery
     this.collisionRecoveryTime = 0.5;
 
-    // Bounce back effect
-    this.velocity.negate().multiplyScalar(0.3);
+    // Enhanced bounce back effect based on speed
+    const speedFactor = Math.min(this.currentSpeed / this.maxSpeed, 1);
+    this.velocity.negate().multiplyScalar(0.3 + speedFactor * 0.2);
 
-    // Take damage
-    this.takeDamage(10);
+    // Take damage proportional to speed
+    const damageAmount = Math.min(5 + Math.floor(speedFactor * 15), 20);
+    this.takeDamage(damageAmount);
+    
+    // Add visual feedback for collision
+    this.createCollisionEffect();
+  }
+  
+  private createCollisionEffect() {
+    // Create particle effect for collision
+    const particleCount = 15;
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+    const colors = [];
+    
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (Math.PI * 2 * i) / particleCount;
+      positions.push(
+        Math.cos(angle) * 0.5,
+        0.5,
+        Math.sin(angle) * 0.5
+      );
+      
+      // Debris-like colors
+      const color = new THREE.Color(0x888888);
+      colors.push(color.r, color.g, color.b);
+    }
+    
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    
+    const material = new THREE.PointsMaterial({
+      size: 0.2,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8
+    });
+    
+    const particles = new THREE.Points(geometry, material);
+    this.mesh.add(particles);
+    
+    // Animate and remove particles
+    let time = 0;
+    const animate = () => {
+      time += 0.05;
+      if (time >= 1) {
+        this.mesh.remove(particles);
+        geometry.dispose();
+        material.dispose();
+        return;
+      }
+      
+      const positions = geometry.attributes.position.array;
+      for (let i = 0; i < positions.length; i += 3) {
+        positions[i] *= 1.1;
+        positions[i + 1] *= 1.05;
+        positions[i + 2] *= 1.1;
+      }
+      geometry.attributes.position.needsUpdate = true;
+      material.opacity = 1 - time;
+      
+      requestAnimationFrame(animate);
+    };
+    animate();
   }
 
   public takeDamage(amount: number) {
