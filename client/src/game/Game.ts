@@ -23,8 +23,8 @@ export class Game {
   private isGameActive: boolean = true; // Assuming this variable is used
 
 
-  constructor(container: HTMLElement, enemies: any[]) { //Added enemies parameter
-    this.enemies = enemies;
+  constructor(container: HTMLElement, enemies: any[] = []) { //Added enemies parameter with default empty array
+    this.enemies = enemies || [];
     this.lastTime = performance.now();
     // Initialize scene
     this.scene = new THREE.Scene();
@@ -225,7 +225,10 @@ export class Game {
     if (this.isGameActive) {
       // Update car and bullets (car update will call weaponSystem.update)
       this.car.update(delta);
-      this.enemies.forEach(enemy => enemy.update?.(delta));
+      // Make sure enemies array exists before using forEach
+      if (this.enemies && Array.isArray(this.enemies)) {
+        this.enemies.forEach(enemy => enemy.update?.(delta));
+      }
       this.car.updateBullets(delta, this.terrain);
 
       // Update enemies with bullet optimization
@@ -298,6 +301,11 @@ export class Game {
 
   private checkBulletCollisions() {
     // Create temporary bounding spheres for efficient collision detection
+    if (!this.enemies || !Array.isArray(this.enemies)) {
+      this.enemies = [];
+      return;
+    }
+    
     const enemyBounds: { enemy: any, bounds: THREE.Sphere }[] = this.enemies.map(enemy => {
       const boundingBox = new THREE.Box3().setFromObject(enemy.mesh);
       const center = new THREE.Vector3();
