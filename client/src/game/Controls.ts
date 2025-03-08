@@ -119,26 +119,56 @@ export class Controls {
     const currentSpeed = this.car.velocity.length();
     const direction = this.car.mesh.getWorldDirection(new THREE.Vector3());
 
-    // Optimized forward/backward movement
+    // Enhanced forward/backward movement
     if (this.keys['w']) {
-      const accelerationFactor = Math.max(0.5, 1 - currentSpeed / this.car.maxSpeed);
-      this.car.velocity.add(direction.multiplyScalar(this.car.acceleration * 0.1 * accelerationFactor));
+      // Smoother acceleration curve, better response at lower speeds
+      const accelerationFactor = Math.max(0.6, 1 - Math.pow(currentSpeed / this.car.maxSpeed, 1.2));
+      this.car.velocity.add(direction.multiplyScalar(this.car.acceleration * 0.12 * accelerationFactor));
     }
     if (this.keys['s']) {
-      const reverseAcceleration = this.car.acceleration * 0.06;
+      // Better braking when going forward, better reverse acceleration when stopped
+      const isMovingForward = this.car.velocity.dot(direction) > 0;
+      const reverseAcceleration = isMovingForward ? 
+        this.car.acceleration * 0.15 : // Stronger braking
+        this.car.acceleration * 0.08;  // Normal reverse
       this.car.velocity.sub(direction.multiplyScalar(reverseAcceleration));
     }
 
-    // Optimized turning
+    // Enhanced turning with variable response based on speed
     if (this.keys['a'] || this.keys['d']) {
-      const turnSpeedFactor = Math.max(0.4, 1 - currentSpeed / this.car.maxSpeed);
-      const turnAmount = this.car.turnSpeed * 0.05 * turnSpeedFactor;
+      // More responsive at low speeds, more stable at high speeds
+      // Use a curve that gives more control in mid-range speeds
+      const speedRatio = currentSpeed / this.car.maxSpeed;
+      let turnSpeedFactor;
+      
+      if (speedRatio < 0.2) {
+        // Very low speed - tight turning
+        turnSpeedFactor = 0.8;
+      } else if (speedRatio < 0.6) {
+        // Mid speeds - optimal turning
+        turnSpeedFactor = 0.6;
+      } else {
+        // High speeds - gradual turning for stability
+        turnSpeedFactor = 0.4 - (speedRatio - 0.6) * 0.2;
+      }
+      
+      const turnAmount = this.car.turnSpeed * 0.06 * turnSpeedFactor;
 
       if (this.keys['a']) {
         this.car.mesh.rotation.y += turnAmount;
+        // Add slight drift effect at high speeds
+        if (speedRatio > 0.7) {
+          const lateralForce = direction.clone().cross(new THREE.Vector3(0, 1, 0)).multiplyScalar(0.02);
+          this.car.velocity.add(lateralForce);
+        }
       }
       if (this.keys['d']) {
         this.car.mesh.rotation.y -= turnAmount;
+        // Add slight drift effect at high speeds
+        if (speedRatio > 0.7) {
+          const lateralForce = direction.clone().cross(new THREE.Vector3(0, 1, 0)).multiplyScalar(-0.02);
+          this.car.velocity.add(lateralForce);
+        }
       }
     }
 
