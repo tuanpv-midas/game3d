@@ -4,7 +4,7 @@ import { Car } from './Car';
 import { Terrain } from './Terrain';
 import { Controls } from './Controls';
 import { PowerUp, PowerUpType } from './PowerUp';
-import { BulletType } from './Bullet'; // Assuming this import is needed
+import { BulletType } from './WeaponSystem'; // Fixed import
 
 
 export class Game {

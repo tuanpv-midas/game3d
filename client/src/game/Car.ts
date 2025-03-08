@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Bullet } from './Bullet';
 import { Terrain } from './Terrain';
 import { HealthSystem } from './Health';
-import { WeaponSystem, BulletType } from './Weapon';
+import { WeaponSystem, BulletType } from './WeaponSystem';
 
 export class Car {
   public mesh: THREE.Group;
