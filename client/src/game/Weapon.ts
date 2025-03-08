@@ -13,15 +13,21 @@ export class WeaponSystem {
   private cooldown: number;
   private bulletType: BulletType;
   private damage: number;
+  private heatingLevel: number;
+  private overheated: boolean;
 
   constructor() {
     this.lastFireTime = 0;
-    this.cooldown = 0.5; // 0.5 seconds between shots
+    this.cooldown = 0.5; // Base cooldown
     this.bulletType = BulletType.NORMAL;
     this.damage = 10;
+    this.heatingLevel = 0;
+    this.overheated = false;
   }
 
   public canFire(): boolean {
+    if (this.overheated) return false;
+
     const currentTime = performance.now() / 1000;
     return currentTime - this.lastFireTime >= this.cooldown;
   }
@@ -30,14 +36,24 @@ export class WeaponSystem {
     if (!this.canFire()) return null;
 
     this.lastFireTime = performance.now() / 1000;
-    
+
+    // Update heating system
+    this.heatingLevel += 0.2;
+    if (this.heatingLevel >= 1) {
+      this.overheated = true;
+      setTimeout(() => {
+        this.overheated = false;
+        this.heatingLevel = 0;
+      }, 3000); // 3 seconds cooldown when overheated
+    }
+
     const bullet = new Bullet(position, direction, turretPosition, this.bulletType, this.damage);
     return bullet;
   }
 
   public setBulletType(type: BulletType) {
     this.bulletType = type;
-    
+
     // Adjust damage and cooldown based on bullet type
     switch(type) {
       case BulletType.NORMAL:
@@ -63,6 +79,14 @@ export class WeaponSystem {
     const currentTime = performance.now() / 1000;
     const timeSinceLastFire = currentTime - this.lastFireTime;
     return Math.min(1, timeSinceLastFire / this.cooldown);
+  }
+
+  public getHeatLevel(): number {
+    return this.heatingLevel;
+  }
+
+  public isOverheated(): boolean {
+    return this.overheated;
   }
 
   public getBulletType(): BulletType {
