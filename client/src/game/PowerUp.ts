@@ -36,8 +36,8 @@ export class PowerUp {
         geometry = new THREE.OctahedronGeometry(0.7);
         material = new THREE.MeshPhongMaterial({ 
           color: 0x0066ff,
-          metalness: 0.8,
-          roughness: 0.2
+          specular: 0x3399ff,
+          shininess: 80
         });
         break;
       default: // Weapon power-ups

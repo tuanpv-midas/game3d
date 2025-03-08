@@ -196,8 +196,13 @@ export class Car {
     this.mesh.position.copy(nextPosition);
   }
 
-  /* Method moved and combined with shoot(): void above */
-
+  public shoot(): void {
+    if (!this.healthSystem.isAlive() || !this.weaponSystem.canFire()) return;
+    
+    // Get direction from turret rotation
+    const direction = new THREE.Vector3(0, 0, -1);
+    direction.applyQuaternion(this.turret.quaternion);
+    
     const bullet = this.weaponSystem.fire(
       this.mesh.position.clone(),
       this.mesh.getWorldDirection(new THREE.Vector3()),
