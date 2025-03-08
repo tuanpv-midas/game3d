@@ -61,18 +61,25 @@ export class Controls {
   private onClick(event: MouseEvent) {
     if (!this.isPointerLocked) {
       try {
-        // Try to request pointer lock, but don't rely on it
-        this.domElement.requestPointerLock();
-        
-        // Set a short timeout to check if pointer lock was successful
-        setTimeout(() => {
-          if (!document.pointerLockElement) {
-            console.log('Using fallback control mode due to sandbox restrictions');
-            // If pointer lock failed, we'll use the fallback mode
-          }
-        }, 100);
+        // Make sure domElement exists and is valid before requesting pointer lock
+        if (this.domElement && typeof this.domElement.requestPointerLock === 'function') {
+          // Try to request pointer lock, but don't rely on it
+          this.domElement.requestPointerLock();
+          
+          // Set a short timeout to check if pointer lock was successful
+          setTimeout(() => {
+            if (!document.pointerLockElement) {
+              console.log('Using fallback control mode due to sandbox restrictions');
+              // If pointer lock failed, we'll use the fallback mode
+            }
+          }, 100);
+        } else {
+          // If requestPointerLock is not available, use fallback immediately
+          console.log('Pointer lock not supported, using fallback control mode');
+        }
       } catch (error) {
         console.warn('Pointer lock request failed:', error);
+        // Continue with fallback mode
       }
     }
   }
