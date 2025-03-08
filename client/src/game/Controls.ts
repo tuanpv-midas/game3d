@@ -5,26 +5,30 @@ export class Controls {
   private car: Car;
   private camera: THREE.PerspectiveCamera;
   private domElement: HTMLElement;
-  
+
   private keys: { [key: string]: boolean };
   private mousePosition: { x: number; y: number };
   private cameraOffset: THREE.Vector3;
-  
+  private isFirstPerson: boolean;
+  private firstPersonOffset: THREE.Vector3;
+
   constructor(car: Car, camera: THREE.PerspectiveCamera, domElement: HTMLElement) {
     this.car = car;
     this.camera = camera;
     this.domElement = domElement;
-    
+
     this.keys = {};
     this.mousePosition = { x: 0, y: 0 };
-    this.cameraOffset = new THREE.Vector3(0, 3, -8);
-    
+    this.cameraOffset = new THREE.Vector3(0, 3, -8); // Third person view
+    this.firstPersonOffset = new THREE.Vector3(0, 1.5, 0.5); // First person view (from cabin)
+    this.isFirstPerson = false;
+
     // Setup event listeners
     document.addEventListener('keydown', this.onKeyDown.bind(this));
     document.addEventListener('keyup', this.onKeyUp.bind(this));
     document.addEventListener('mousemove', this.onMouseMove.bind(this));
     document.addEventListener('click', this.onMouseClick.bind(this));
-    
+
     // Lock pointer for FPS-style camera
     domElement.addEventListener('click', () => {
       domElement.requestPointerLock();
@@ -50,6 +54,10 @@ export class Controls {
     if (this.keys[' ']) { // Space for brake
       this.car.velocity.multiplyScalar(0.9);
     }
+    if (this.keys['v']) { // Toggle view
+      this.isFirstPerson = !this.isFirstPerson;
+      this.keys['v'] = false; // Reset to prevent multiple toggles
+    }
 
     // Limit speed
     const speed = this.car.velocity.length();
@@ -57,10 +65,35 @@ export class Controls {
       this.car.velocity.multiplyScalar(this.car.maxSpeed / speed);
     }
 
-    // Update camera position
-    const cameraTarget = this.car.mesh.position.clone().add(this.cameraOffset);
-    this.camera.position.lerp(cameraTarget, 0.1);
-    this.camera.lookAt(this.car.mesh.position);
+    // Update camera position based on view mode
+    if (this.isFirstPerson) {
+      // First person view - camera follows from inside car
+      const carPosition = this.car.mesh.position.clone();
+      const carDirection = this.car.mesh.getWorldDirection(new THREE.Vector3());
+
+      // Calculate camera position inside car
+      const cameraPosition = carPosition.clone()
+        .add(this.firstPersonOffset.clone().applyQuaternion(this.car.mesh.quaternion));
+
+      this.camera.position.copy(cameraPosition);
+
+      // Look in car's direction plus mouse offset
+      const lookAtPoint = cameraPosition.clone()
+        .add(carDirection.multiplyScalar(10))
+        .add(new THREE.Vector3(
+          Math.sin(this.mousePosition.x) * 2,
+          this.mousePosition.y * 2,
+          Math.cos(this.mousePosition.x) * 2
+        ));
+
+      this.camera.lookAt(lookAtPoint);
+    } else {
+      // Third person view - camera follows from behind
+      const cameraTarget = this.car.mesh.position.clone()
+        .add(this.cameraOffset.clone().applyQuaternion(this.car.mesh.quaternion));
+      this.camera.position.lerp(cameraTarget, 0.1);
+      this.camera.lookAt(this.car.mesh.position);
+    }
   }
 
   private onKeyDown(event: KeyboardEvent) {
@@ -76,11 +109,6 @@ export class Controls {
       this.mousePosition.x += event.movementX * 0.003;
       this.mousePosition.y = Math.max(-Math.PI/3, Math.min(Math.PI/3, 
         this.mousePosition.y + event.movementY * 0.003));
-      
-      // Update camera offset based on mouse position
-      this.cameraOffset.x = Math.sin(this.mousePosition.x) * 8;
-      this.cameraOffset.z = -Math.cos(this.mousePosition.x) * 8;
-      this.cameraOffset.y = 3 + this.mousePosition.y * 2;
     }
   }
 

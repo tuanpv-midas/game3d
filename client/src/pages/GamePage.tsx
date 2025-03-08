@@ -9,7 +9,7 @@ export default function GamePage() {
     if (!containerRef.current || gameRef.current) return;
 
     gameRef.current = new Game(containerRef.current);
-    
+
     return () => {
       if (gameRef.current) {
         gameRef.current.dispose();
@@ -27,6 +27,7 @@ export default function GamePage() {
           <li>Mouse - Look around</li>
           <li>Left Click - Shoot</li>
           <li>Space - Brake</li>
+          <li>V - Toggle view (First/Third person)</li>
         </ul>
       </div>
     </div>
