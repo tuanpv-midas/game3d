@@ -77,13 +77,43 @@ export class Game {
 
   private createHUD(container: HTMLElement): HTMLDivElement {
     const hud = document.createElement('div');
+    hud.id = 'game-hud';
+
+    // Add control instructions for sandboxed environment
+    const instructions = document.createElement('div');
+    instructions.id = 'control-instructions';
+    instructions.style.cssText = `
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.5);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px;
+      pointer-events: none;
+      transition: opacity 1s;
+      opacity: 0.8;
+    `;
+    instructions.innerHTML = `
+      <div>Controls: WASD - Move, Space - Brake</div>
+      <div>Click to shoot, Click and drag to aim</div>
+      <div>V - Toggle camera view</div>
+    `;
+    hud.appendChild(instructions);
+
+    // Hide instructions after 10 seconds
+    setTimeout(() => {
+      instructions.style.opacity = '0';
+    }, 10000);
+
     hud.style.position = 'absolute';
     hud.style.top = '20px';
     hud.style.right = '20px';
     hud.style.color = 'white';
     hud.style.fontFamily = 'Arial, sans-serif';
     hud.style.textShadow = '2px 2px 2px rgba(0,0,0,0.5)';
-    hud.innerHTML = `
+    hud.innerHTML += `
       <div id="game-hud">
         <div id="health-bar" class="bar-container">
           <div>HP: <span id="health-value">100</span></div>
@@ -117,32 +147,6 @@ export class Game {
         width: 150px;
         height: 20px;
         background: rgba(0,0,0,0.5);
-
-  // Add a utility method to check if pointer lock is allowed
-  private isPointerLockAllowed(): boolean {
-    // Check if we're running in an iframe
-    const isInIframe = window !== window.top;
-    
-    // If in iframe, check if we have 'allow-pointer-lock' permission
-    if (isInIframe) {
-      // We can't directly check permissions, but we can try a test request
-      // and catch any security errors
-      try {
-        const testElement = document.createElement('div');
-        document.body.appendChild(testElement);
-        testElement.requestPointerLock();
-        document.exitPointerLock();
-        document.body.removeChild(testElement);
-        return true;
-      } catch (error) {
-        console.warn('Pointer lock is not allowed in this context:', error);
-        return false;
-      }
-    }
-    
-    return true; // Not in iframe, should be allowed
-  }
-
         border-radius: 10px;
         overflow: hidden;
       }

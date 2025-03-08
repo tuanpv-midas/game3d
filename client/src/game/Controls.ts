@@ -61,7 +61,19 @@ export class Controls {
   private onClick(event: MouseEvent) {
     if (!this.isPointerLocked) {
       try {
+        // Try to request pointer lock, but don't rely on it
         this.domElement.requestPointerLock();
+        
+        // Set a short timeout to check if pointer lock was successful
+        setTimeout(() => {
+          if (!document.pointerLockElement) {
+            console.log('Using fallback control mode due to sandbox restrictions');
+            // If pointer lock failed, we'll use the fallback mode
+            // Allow shooting regardless
+            this.car.shoot();
+            this.cameraShake = 0.5;
+          }
+        }, 100);
       } catch (error) {
         console.warn('Pointer lock request failed:', error);
         // Even if pointer lock fails, allow shooting
@@ -91,6 +103,26 @@ export class Controls {
         -Math.PI/3,
         Math.PI/3
       );
+    } else {
+      // Fallback for when pointer lock is not available (sandboxed environments)
+      // Calculate normalized position based on mouse position in window
+      if (event.buttons > 0) { // Only move when mouse button is pressed
+        const movementX = event.movementX || 0;
+        const movementY = event.movementY || 0;
+        
+        // Use a lower sensitivity for smoother control
+        this.mousePosition.x = Math.clamp(
+          this.mousePosition.x + movementX * 0.001,
+          -Math.PI/2,
+          Math.PI/2
+        );
+
+        this.mousePosition.y = Math.clamp(
+          this.mousePosition.y + movementY * 0.001,
+          -Math.PI/3,
+          Math.PI/3
+        );
+      }
     }
   }
 
