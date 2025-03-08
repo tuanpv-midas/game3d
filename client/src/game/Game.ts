@@ -98,28 +98,27 @@ export class Game {
           </div>
         </div>
 
-  private update(delta: number): void {
-    // Update player car
-    this.player.update(delta);
-    
-    // Update bullets
-    this.player.updateBullets(delta);
-    
-    // Update controls
+  private animate = () => {
+    requestAnimationFrame(this.animate);
+
+    const delta = this.clock.getDelta();
+
+    // Update game objects
+    this.car.update(delta);
     this.controls.update();
-    
-    // Update camera
-    this.updateCamera();
-    
-    // Check for collisions
-    this.checkCollisions();
-    
-    // Update other game objects
+
+    // Update bullets and check collisions
+    this.car.updateBullets(delta, this.terrain);
+
+    // Update power-ups
     this.updatePowerUps(delta);
-    
+
+    // Update HUD
+    this.updateHUD();
+
     // Render scene
     this.renderer.render(this.scene, this.camera);
-  }
+  };
 
         <div id="weapon-cooldown" class="bar-container">
           <div>Weapon Ready</div>

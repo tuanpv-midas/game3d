@@ -73,22 +73,24 @@ export class Car {
     }
   }
   
-  public updateBullets(delta: number): void {
+  public updateBullets(delta: number, terrain?: any): void {
     // Update existing bullets
     for (let i = this.bullets.length - 1; i >= 0; i--) {
-
-  public getBullets(): Bullet[] {
-    return this.bullets;
-  }
-
       this.bullets[i].update(delta);
       
       // Remove bullets that have traveled too far
       if (this.bullets[i].distanceTraveled > 100) {
+        if (this.mesh.parent) {
+          this.mesh.parent.remove(this.bullets[i].mesh);
+        }
         this.bullets[i].dispose();
         this.bullets.splice(i, 1);
       }
     }
+  }
+
+  public getBullets(): Bullet[] {
+    return this.bullets;
   }
 
     this.wheels = [];
