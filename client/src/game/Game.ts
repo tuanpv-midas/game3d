@@ -223,12 +223,9 @@ export class Game {
     this.lastTime = time;
 
     if (this.isGameActive) {
-      // Update weapon systems (for cooling, etc.)
-      this.car.weaponSystem?.update(delta);
-      this.enemies.forEach(enemy => enemy.weaponSystem?.update?.(delta));
-
-      // Update car and bullets
+      // Update car and bullets (car update will call weaponSystem.update)
       this.car.update(delta);
+      this.enemies.forEach(enemy => enemy.update?.(delta));
       this.car.updateBullets(delta, this.terrain);
 
       // Update enemies with bullet optimization

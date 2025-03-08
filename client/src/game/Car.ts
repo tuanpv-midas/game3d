@@ -109,6 +109,11 @@ export class Car {
   public update(delta: number) {
     if (!this.healthSystem.isAlive()) return;
 
+    // Update weapon system if available
+    if (this.weaponSystem && typeof this.weaponSystem.update === 'function') {
+      this.weaponSystem.update(delta);
+    }
+
     // Calculate current speed
     this.currentSpeed = this.velocity.length();
 
@@ -376,31 +381,6 @@ export class Car {
 
   public getArmor(): number {
     return this.healthSystem.getArmor();
-  }
-
-  // Add method to update the weapon system
-  public update(delta: number) {
-    if (!this.healthSystem.isAlive()) return;
-
-    // Update weapon system if available
-    if (this.weaponSystem && typeof this.weaponSystem.update === 'function') {
-      this.weaponSystem.update(delta);
-    }
-
-    // Rest of update logic...
-    this.currentSpeed = this.velocity.length();
-
-    // Apply velocity to position with collision check
-    const nextPosition = this.mesh.position.clone().add(this.velocity.clone().multiplyScalar(delta));
-
-    // Collision recovery with better bounce-back
-    if (this.collisionRecoveryTime > 0) {
-      this.collisionRecoveryTime -= delta;
-      this.velocity.multiplyScalar(0.93); // Improved recovery slowdown
-    }
-
-    // Update position if no collision
-    this.mesh.position.copy(nextPosition);
   }
 
   public dispose() {
