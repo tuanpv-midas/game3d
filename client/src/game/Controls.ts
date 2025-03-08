@@ -69,22 +69,11 @@ export class Controls {
           if (!document.pointerLockElement) {
             console.log('Using fallback control mode due to sandbox restrictions');
             // If pointer lock failed, we'll use the fallback mode
-            // Allow shooting regardless
-            this.car.shoot();
-            this.cameraShake = 0.5;
           }
         }, 100);
       } catch (error) {
         console.warn('Pointer lock request failed:', error);
-        // Even if pointer lock fails, allow shooting
-        this.car.shoot();
-        this.cameraShake = 0.5;
       }
-    } else {
-      // Shoot when pointer is locked
-      this.car.shoot();
-      // Add camera shake effect when shooting
-      this.cameraShake = 0.5;
     }
   }
 
@@ -153,9 +142,12 @@ export class Controls {
       }
     }
 
-    // Enhanced braking
+    // Shoot with space key
     if (this.keys[' ']) {
-      this.car.brake();
+      this.car.shoot();
+      this.cameraShake = 0.5;
+      // Reset the key to prevent continuous shooting
+      this.keys[' '] = false;
     }
 
     // Toggle view

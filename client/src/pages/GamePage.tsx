@@ -27,8 +27,7 @@ export default function GamePage() {
           <li>WASD - Drive car</li>
           <li>Mouse - Look around</li>
           <li>Mouse Wheel - Zoom in/out</li>
-          <li>Left Click - Shoot</li>
-          <li>Space - Brake</li>
+          <li>Space - Shoot</li>
           <li>V - Toggle view (First/Third person)</li>
           <li>ESC - Release mouse control</li>
         </ul>
