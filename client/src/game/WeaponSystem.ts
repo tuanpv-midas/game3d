@@ -35,6 +35,18 @@ export class WeaponSystem {
     this.scene = null;
   }
 
+  public update(delta: number): void {
+    // Automatic cooling when not firing
+    if (this.autoRecovery && this.heatingLevel > 0 && !this.overheated) {
+      const currentTime = performance.now() / 1000;
+      const timeSinceLastFire = currentTime - this.lastFireTime;
+
+      if (timeSinceLastFire > this.cooldown * 2) {
+        this.heatingLevel = Math.max(0, this.heatingLevel - this.coolingRate * delta);
+      }
+    }
+  }
+
   public setScene(scene: THREE.Object3D) {
     this.scene = scene;
   }
