@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { WeaponSystem } from './WeaponSystem';
 import { Car } from './Car';
 import { Terrain } from './Terrain';
 import { Controls } from './Controls';
@@ -327,7 +328,7 @@ export class Game {
           // Then do more precise collision check
           if (this.checkBulletCollision(bullet, enemy.mesh)) {
             // Handle explosion for explosive ammo
-            if (bullet.getType() === BulletType.EXPLOSIVE) {
+            if (bullet.getType() === WeaponSystem.BulletType.EXPLOSIVE) {
               this.createAreaEffect(bullet.position.clone(), 5, enemies => {
                 enemies.forEach(e => {
                   if (e && typeof e.takeDamage === 'function') {
