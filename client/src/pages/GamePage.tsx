@@ -25,6 +25,7 @@ export default function GamePage() {
         <ul className="mt-2 space-y-1">
           <li>WASD - Drive car</li>
           <li>Mouse - Look around</li>
+          <li>Mouse Wheel - Zoom in/out</li>
           <li>Left Click - Shoot</li>
           <li>Space - Brake</li>
           <li>V - Toggle view (First/Third person)</li>

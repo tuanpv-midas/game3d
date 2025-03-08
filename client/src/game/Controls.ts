@@ -12,6 +12,15 @@ export class Controls {
   private isFirstPerson: boolean;
   private firstPersonOffset: THREE.Vector3;
 
+  // New camera control parameters
+  private zoomLevel: number;
+  private minZoom: number;
+  private maxZoom: number;
+  private cameraShake: number;
+  private targetCameraOffset: THREE.Vector3;
+  private currentLookAt: THREE.Vector3;
+  private targetLookAt: THREE.Vector3;
+
   constructor(car: Car, camera: THREE.PerspectiveCamera, domElement: HTMLElement) {
     this.car = car;
     this.camera = camera;
@@ -23,10 +32,20 @@ export class Controls {
     this.firstPersonOffset = new THREE.Vector3(0, 1.5, 0.5); // First person view (from cabin)
     this.isFirstPerson = false;
 
+    // Initialize new camera parameters
+    this.zoomLevel = 1;
+    this.minZoom = 0.5;
+    this.maxZoom = 2;
+    this.cameraShake = 0;
+    this.targetCameraOffset = this.cameraOffset.clone();
+    this.currentLookAt = new THREE.Vector3();
+    this.targetLookAt = new THREE.Vector3();
+
     // Setup event listeners
     document.addEventListener('keydown', this.onKeyDown.bind(this));
     document.addEventListener('keyup', this.onKeyUp.bind(this));
     document.addEventListener('mousemove', this.onMouseMove.bind(this));
+    document.addEventListener('wheel', this.onMouseWheel.bind(this));
     document.addEventListener('click', this.onMouseClick.bind(this));
 
     // Lock pointer for FPS-style camera
@@ -76,6 +95,12 @@ export class Controls {
       this.keys['v'] = false; // Reset to prevent multiple toggles
     }
 
+    // Update camera shake effect
+    if (this.cameraShake > 0) {
+      this.cameraShake *= 0.9; // Decay shake effect
+      if (this.cameraShake < 0.001) this.cameraShake = 0;
+    }
+
     // Update camera position based on view mode
     if (this.isFirstPerson) {
       // First person view - camera follows from inside car
@@ -86,24 +111,54 @@ export class Controls {
       const cameraPosition = carPosition.clone()
         .add(this.firstPersonOffset.clone().applyQuaternion(this.car.mesh.quaternion));
 
-      this.camera.position.copy(cameraPosition);
+      // Apply camera shake in first person
+      if (this.cameraShake > 0) {
+        cameraPosition.add(new THREE.Vector3(
+          (Math.random() - 0.5) * this.cameraShake * 0.1,
+          (Math.random() - 0.5) * this.cameraShake * 0.1,
+          (Math.random() - 0.5) * this.cameraShake * 0.1
+        ));
+      }
 
-      // Look in car's direction plus mouse offset
-      const lookAtPoint = cameraPosition.clone()
+      this.camera.position.lerp(cameraPosition, 0.1);
+
+      // Calculate look target with smooth transition
+      this.targetLookAt.copy(cameraPosition)
         .add(carDirection.multiplyScalar(10))
         .add(new THREE.Vector3(
           Math.sin(this.mousePosition.x) * 2,
-          this.mousePosition.y * 2,
+          Math.clamp(this.mousePosition.y, -1, 1) * 2,
           Math.cos(this.mousePosition.x) * 2
         ));
 
-      this.camera.lookAt(lookAtPoint);
+      this.currentLookAt.lerp(this.targetLookAt, 0.1);
+      this.camera.lookAt(this.currentLookAt);
+
     } else {
       // Third person view - camera follows from behind
+      // Apply zoom to camera offset
+      this.targetCameraOffset.copy(this.cameraOffset).multiplyScalar(this.zoomLevel);
+
+      // Calculate target camera position with smooth transition
       const cameraTarget = this.car.mesh.position.clone()
-        .add(this.cameraOffset.clone().applyQuaternion(this.car.mesh.quaternion));
+        .add(this.targetCameraOffset.clone().applyQuaternion(this.car.mesh.quaternion));
+
+      // Apply camera shake in third person
+      if (this.cameraShake > 0) {
+        cameraTarget.add(new THREE.Vector3(
+          (Math.random() - 0.5) * this.cameraShake,
+          (Math.random() - 0.5) * this.cameraShake,
+          (Math.random() - 0.5) * this.cameraShake
+        ));
+      }
+
+      // Smooth camera movement
       this.camera.position.lerp(cameraTarget, 0.1);
-      this.camera.lookAt(this.car.mesh.position);
+
+      // Smooth look-at transition
+      this.targetLookAt.copy(this.car.mesh.position);
+      this.currentLookAt.lerp(this.targetLookAt, 0.1);
+      this.camera.lookAt(this.currentLookAt);
     }
   }
 
@@ -117,15 +172,36 @@ export class Controls {
 
   private onMouseMove(event: MouseEvent) {
     if (document.pointerLockElement) {
-      this.mousePosition.x += event.movementX * 0.003;
-      this.mousePosition.y = Math.max(-Math.PI/3, Math.min(Math.PI/3, 
-        this.mousePosition.y + event.movementY * 0.003));
+      // Limit horizontal view to 180 degrees
+      this.mousePosition.x = Math.clamp(
+        this.mousePosition.x + event.movementX * 0.003,
+        -Math.PI/2,
+        Math.PI/2
+      );
+
+      // Limit vertical view to prevent over-rotation
+      this.mousePosition.y = Math.clamp(
+        this.mousePosition.y + event.movementY * 0.003,
+        -Math.PI/3,
+        Math.PI/3
+      );
     }
+  }
+
+  private onMouseWheel(event: WheelEvent) {
+    // Update zoom level based on wheel movement
+    this.zoomLevel = Math.clamp(
+      this.zoomLevel + event.deltaY * -0.001,
+      this.minZoom,
+      this.maxZoom
+    );
   }
 
   private onMouseClick() {
     if (document.pointerLockElement) {
       this.car.shoot();
+      // Add camera shake effect when shooting
+      this.cameraShake = 0.5;
     }
   }
 
@@ -133,6 +209,18 @@ export class Controls {
     document.removeEventListener('keydown', this.onKeyDown.bind(this));
     document.removeEventListener('keyup', this.onKeyUp.bind(this));
     document.removeEventListener('mousemove', this.onMouseMove.bind(this));
+    document.removeEventListener('wheel', this.onMouseWheel.bind(this));
     document.removeEventListener('click', this.onMouseClick.bind(this));
   }
 }
+
+// Helper function to clamp a value between a min and max
+declare global {
+  interface Math {
+    clamp(value: number, min: number, max: number): number;
+  }
+}
+
+Math.clamp = (value: number, min: number, max: number): number => {
+  return Math.min(Math.max(value, min), max);
+};
