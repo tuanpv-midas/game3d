@@ -3,6 +3,8 @@ import { Car } from './Car';
 import { Terrain } from './Terrain';
 import { Controls } from './Controls';
 import { PowerUp, PowerUpType } from './PowerUp';
+import { BulletType } from './Bullet'; // Assuming this import is needed
+
 
 export class Game {
   private scene: THREE.Scene;
@@ -15,8 +17,14 @@ export class Game {
   private powerUps: PowerUp[];
   private powerUpSpawnTimer: number;
   private hud: HTMLDivElement;
+  private lastTime: number;
+  private enemies: any[]; // Assuming enemies array exists
+  private isGameActive: boolean = true; // Assuming this variable is used
 
-  constructor(container: HTMLElement) {
+
+  constructor(container: HTMLElement, enemies: any[]) { //Added enemies parameter
+    this.enemies = enemies;
+    this.lastTime = performance.now();
     // Initialize scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87ceeb); // Sky blue
@@ -69,7 +77,7 @@ export class Game {
     this.spawnInitialPowerUps();
 
     // Start animation loop
-    this.animate();
+    this.update(performance.now()); // Start animation loop
 
     // Handle window resize
     window.addEventListener('resize', this.onWindowResize.bind(this));
@@ -209,27 +217,46 @@ export class Game {
     this.scene.add(powerUp.mesh);
   }
 
-  private animate = () => {
-    requestAnimationFrame(this.animate);
+  private update = (time: number) => {
+    const delta = Math.min((time - this.lastTime) / 1000, 0.1); // Cap delta time to prevent large jumps
+    this.lastTime = time;
 
-    const delta = this.clock.getDelta();
+    if (this.isGameActive) {
+      // Update weapon systems (for cooling, etc.)
+      this.car.weaponSystem?.update(delta);
+      this.enemies.forEach(enemy => enemy.weaponSystem?.update?.(delta));
 
-    // Update game objects
-    this.car.update(delta);
-    this.controls.update();
+      // Update car and bullets
+      this.car.update(delta);
+      this.car.updateBullets(delta, this.terrain);
 
-    // Update bullets and check collisions
-    this.car.updateBullets(delta, this.terrain);
+      // Update enemies with bullet optimization
+      this.enemies.forEach(enemy => {
+        enemy.update(delta, this.car.mesh.position);
+        enemy.updateBullets(delta, this.terrain);
+      });
 
-    // Update power-ups
-    this.updatePowerUps(delta);
+      // Update controls
+      this.controls.update(delta);
 
-    // Update HUD
-    this.updateHUD();
+      // Check for bullet collisions with improved performance
+      this.checkBulletCollisions();
 
-    // Render scene
+      // Update HUD
+      this.updateHUD();
+
+      // Check for powerups
+      this.checkPowerUpCollisions();
+      this.updatePowerUps(delta);
+    }
+
+    // Render the scene
     this.renderer.render(this.scene, this.camera);
+
+    // Continue animation loop
+    requestAnimationFrame(this.update.bind(this));
   };
+
 
   private updatePowerUps(delta: number) {
     // Update existing power-ups
@@ -269,6 +296,134 @@ export class Game {
     this.camera.aspect = container.clientWidth / container.clientHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(container.clientWidth, container.clientHeight);
+  }
+
+  private checkBulletCollisions() {
+    // Create temporary bounding spheres for efficient collision detection
+    const enemyBounds: { enemy: any, bounds: THREE.Sphere }[] = this.enemies.map(enemy => {
+      const boundingBox = new THREE.Box3().setFromObject(enemy.mesh);
+      const center = new THREE.Vector3();
+      boundingBox.getCenter(center);
+      const radius = boundingBox.max.distanceTo(boundingBox.min) / 2;
+      return { enemy, bounds: new THREE.Sphere(center, radius) };
+    });
+
+    const carBounds = new THREE.Box3().setFromObject(this.car.mesh);
+    const carCenter = new THREE.Vector3();
+    carBounds.getCenter(carCenter);
+    const carRadius = carBounds.max.distanceTo(carBounds.min) / 2;
+    const carSphere = new THREE.Sphere(carCenter, carRadius);
+
+    // Check car bullets against enemies with early rejection
+    this.car.getBullets().forEach(bullet => {
+      // Only check active bullets
+      if (!bullet.isActive) return;
+
+      const bulletPos = bullet.position;
+
+      for (const { enemy, bounds } of enemyBounds) {
+        // Quick sphere test first (much faster than detailed collision)
+        if (bulletPos.distanceTo(bounds.center) <= bounds.radius + 0.5) {
+          // Then do more precise collision check
+          if (this.checkBulletCollision(bullet, enemy.mesh)) {
+            // Handle explosion for explosive ammo
+            if (bullet.getType() === BulletType.EXPLOSIVE) {
+              this.createAreaEffect(bullet.position.clone(), 5, enemies => {
+                enemies.forEach(e => e.takeDamage(bullet.getDamage() * 0.5));
+              });
+            }
+
+            enemy.takeDamage(bullet.getDamage());
+            this.car.weaponSystem.recycleBullet(bullet);
+            bullet.isActive = false;
+            break;
+          }
+        }
+      }
+    });
+
+    // Check enemy bullets against car with sphere optimization
+    this.enemies.forEach(enemy => {
+      enemy.getBullets().forEach(bullet => {
+        // Only check active bullets
+        if (!bullet.isActive) return;
+
+        // Quick sphere test first
+        if (bullet.position.distanceTo(carSphere.center) <= carSphere.radius + 0.5) {
+          if (this.checkBulletCollision(bullet, this.car.mesh)) {
+            this.car.takeDamage(bullet.getDamage());
+
+            // If enemy has weapon system with recycling
+            if (enemy.weaponSystem && enemy.weaponSystem.recycleBullet) {
+              enemy.weaponSystem.recycleBullet(bullet);
+            } else {
+              this.scene.remove(bullet.mesh);
+              bullet.dispose();
+            }
+
+            bullet.isActive = false;
+          }
+        }
+      });
+    });
+  }
+
+  // Helper method for area effect weapons
+  private createAreaEffect(position: THREE.Vector3, radius: number, effectFn: (enemies: any[]) => void) {
+    // Find all enemies in radius
+    const enemiesInRange = this.enemies.filter(enemy =>
+      enemy.mesh.position.distanceTo(position) <= radius
+    );
+
+    if (enemiesInRange.length > 0) {
+      effectFn(enemiesInRange);
+    }
+
+    // Create visual effect
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0, radius, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0xff6600,
+        transparent: true,
+        opacity: 0.7,
+        side: THREE.DoubleSide
+      })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.copy(position);
+    ring.position.y += 0.1; // Slightly above ground
+    this.scene.add(ring);
+
+    // Animate and remove
+    let scale = 0;
+    const animate = () => {
+      scale += 0.1;
+      ring.scale.set(scale, scale, scale);
+      ring.material.opacity = 0.7 * (1 - scale / 5);
+
+      if (scale >= 5) {
+        this.scene.remove(ring);
+        ring.geometry.dispose();
+        ring.material.dispose();
+        return;
+      }
+
+      requestAnimationFrame(animate);
+    };
+    animate();
+  }
+
+
+  private checkBulletCollision(bullet: any, mesh: THREE.Object3D): boolean {
+    // Implement your bullet collision detection logic here
+    // This is a placeholder, replace with your actual collision detection
+    const bulletBox = new THREE.Box3().setFromObject(bullet.mesh);
+    const meshBox = new THREE.Box3().setFromObject(mesh);
+    return bulletBox.intersectsBox(meshBox);
+  }
+
+  private checkPowerUpCollisions() {
+    // Placeholder for power-up collision detection
   }
 
   public dispose() {

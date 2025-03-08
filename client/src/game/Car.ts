@@ -100,46 +100,7 @@ export class Car {
     this.collisionRecoveryTime = 0;
   }
 
-  public shoot(): void {
-    if (!this.healthSystem.isAlive() || !this.weaponSystem.canFire()) return;
-    
-    // Get direction from turret rotation
-    const direction = new THREE.Vector3(0, 0, -1);
-    direction.applyQuaternion(this.turret.quaternion);
-    
-    // Get turret position for bullet spawn
-    const turretPosition = new THREE.Vector3();
-    this.turret.getWorldPosition(turretPosition);
-    
-    // Adjust spawn position slightly forward from turret
-    const spawnPosition = turretPosition.clone().add(direction.clone().multiplyScalar(1));
-    
-    // Create bullet
-    const bullet = this.weaponSystem.fire(spawnPosition, direction, turretPosition);
-    if (bullet) {
-      this.bullets.push(bullet);
-      // Add bullet to scene - assuming you have a reference to the scene
-      if (this.mesh.parent) {
-        this.mesh.parent.add(bullet.mesh);
-      }
-    }
-  }
   
-  public updateBullets(delta: number, terrain?: any): void {
-    // Update existing bullets
-    for (let i = this.bullets.length - 1; i >= 0; i--) {
-      this.bullets[i].update(delta);
-      
-      // Remove bullets that have traveled too far
-      if (this.bullets[i].distanceTraveled > 100) {
-        if (this.mesh.parent) {
-          this.mesh.parent.remove(this.bullets[i].mesh);
-        }
-        this.bullets[i].dispose();
-        this.bullets.splice(i, 1);
-      }
-    }
-  }
 
   public getBullets(): Bullet[] {
     return this.bullets;
@@ -231,26 +192,53 @@ export class Car {
   public shoot(): void {
     if (!this.healthSystem.isAlive() || !this.weaponSystem.canFire()) return;
     
-    // Get direction from turret rotation
+    // Ensure weapon system has reference to scene
+    if (this.mesh.parent && !this.weaponSystem.scene) {
+      this.weaponSystem.setScene(this.mesh.parent);
+    }
+    
+    // Get proper direction from the turret (not the car body)
     const direction = new THREE.Vector3(0, 0, -1);
     direction.applyQuaternion(this.turret.quaternion);
     
+    // Get accurate turret position
+    const turretPosition = new THREE.Vector3();
+    this.turret.getWorldPosition(turretPosition);
+    
+    // Fire with adjusted position for better visual appearance
     const bullet = this.weaponSystem.fire(
       this.mesh.position.clone(),
-      this.mesh.getWorldDirection(new THREE.Vector3()),
-      this.turret.getWorldPosition(new THREE.Vector3())
+      direction,
+      turretPosition
     );
 
     if (bullet) {
       this.bullets.push(bullet);
-      // Add recoil effect
-      this.velocity.sub(this.mesh.getWorldDirection(new THREE.Vector3()).multiplyScalar(0.5));
+      
+      // Enhanced recoil effect based on bullet type
+      const recoilStrength = bullet.getType() === BulletType.MISSILE ? 0.8 : 
+                             bullet.getType() === BulletType.EXPLOSIVE ? 0.6 : 0.3;
+      
+      this.velocity.sub(direction.multiplyScalar(recoilStrength));
+      
+      // Add subtle rotational recoil for heavier weapons
+      if (bullet.getType() === BulletType.MISSILE || bullet.getType() === BulletType.EXPLOSIVE) {
+        const randomRecoil = (Math.random() - 0.5) * 0.02;
+        this.mesh.rotation.y += randomRecoil;
+      }
     }
   }
 
   public updateBullets(delta: number, terrain: Terrain) {
-    this.bullets = this.bullets.filter(bullet => {
-      bullet.update(delta);
+    for (let i = this.bullets.length - 1; i >= 0; i--) {
+      const bullet = this.bullets[i];
+      
+      // Update bullet - if it returns false, it's no longer active
+      if (!bullet.update(delta)) {
+        this.recycleInactiveBullet(bullet);
+        this.bullets.splice(i, 1);
+        continue;
+      }
 
       // Check terrain collision
       if (terrain.checkCollision(bullet.position)) {
@@ -258,18 +246,15 @@ export class Car {
         if (bullet.getType() === BulletType.EXPLOSIVE) {
           this.createExplosion(bullet.position.clone());
         }
-        bullet.dispose();
-        return false;
+        this.recycleInactiveBullet(bullet);
+        this.bullets.splice(i, 1);
       }
-
-      // Check range
-      if (bullet.distanceTraveled > 200) {
-        bullet.dispose();
-        return false;
-      }
-
-      return true;
-    });
+    }
+  }
+  
+  private recycleInactiveBullet(bullet: Bullet): void {
+    // Recycle the bullet through the weapon system
+    this.weaponSystem.recycleBullet(bullet);
   }
 
   private createExplosion(position: THREE.Vector3) {
