@@ -47,6 +47,50 @@ export class Car {
     this.mesh.add(this.body);
 
     // Wheels with better detail
+
+  public shoot(): void {
+    if (!this.weaponSystem.canFire()) return;
+    
+    // Get direction from turret rotation
+    const direction = new THREE.Vector3(0, 0, -1);
+    direction.applyQuaternion(this.turret.quaternion);
+    
+    // Get turret position for bullet spawn
+    const turretPosition = new THREE.Vector3();
+    this.turret.getWorldPosition(turretPosition);
+    
+    // Adjust spawn position slightly forward from turret
+    const spawnPosition = turretPosition.clone().add(direction.clone().multiplyScalar(1));
+    
+    // Create bullet
+    const bullet = this.weaponSystem.fire(spawnPosition, direction, turretPosition);
+    if (bullet) {
+      this.bullets.push(bullet);
+      // Add bullet to scene - assuming you have a reference to the scene
+      if (this.mesh.parent) {
+        this.mesh.parent.add(bullet.mesh);
+      }
+    }
+  }
+  
+  public updateBullets(delta: number): void {
+    // Update existing bullets
+    for (let i = this.bullets.length - 1; i >= 0; i--) {
+
+  public getBullets(): Bullet[] {
+    return this.bullets;
+  }
+
+      this.bullets[i].update(delta);
+      
+      // Remove bullets that have traveled too far
+      if (this.bullets[i].distanceTraveled > 100) {
+        this.bullets[i].dispose();
+        this.bullets.splice(i, 1);
+      }
+    }
+  }
+
     this.wheels = [];
     const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
     const wheelMaterial = new THREE.MeshPhongMaterial({ 

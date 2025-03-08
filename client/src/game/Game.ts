@@ -97,6 +97,30 @@ export class Game {
             <div id="armor-fill" class="bar-fill" style="background: #0066ff;"></div>
           </div>
         </div>
+
+  private update(delta: number): void {
+    // Update player car
+    this.player.update(delta);
+    
+    // Update bullets
+    this.player.updateBullets(delta);
+    
+    // Update controls
+    this.controls.update();
+    
+    // Update camera
+    this.updateCamera();
+    
+    // Check for collisions
+    this.checkCollisions();
+    
+    // Update other game objects
+    this.updatePowerUps(delta);
+    
+    // Render scene
+    this.renderer.render(this.scene, this.camera);
+  }
+
         <div id="weapon-cooldown" class="bar-container">
           <div>Weapon Ready</div>
           <div class="bar-background">
