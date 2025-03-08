@@ -8,7 +8,7 @@ export class Car {
   private wheels: THREE.Mesh[];
   private turret: THREE.Mesh;
   private bullets: Bullet[];
-  
+
   public velocity: THREE.Vector3;
   public acceleration: number;
   public maxSpeed: number;
@@ -17,7 +17,7 @@ export class Car {
   constructor() {
     this.mesh = new THREE.Group();
     this.bullets = [];
-    
+
     // Car body
     const bodyGeometry = new THREE.BoxGeometry(2, 1, 4);
     const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x2266cc });
@@ -29,15 +29,17 @@ export class Car {
     this.wheels = [];
     const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3);
     const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
-    
+
     const wheelPositions = [
-      [-1, -0.3, 1.5], [1, -0.3, 1.5],
-      [-1, -0.3, -1.5], [1, -0.3, -1.5]
+      new THREE.Vector3(-1, -0.3, 1.5),
+      new THREE.Vector3(1, -0.3, 1.5),
+      new THREE.Vector3(-1, -0.3, -1.5),
+      new THREE.Vector3(1, -0.3, -1.5)
     ];
 
     wheelPositions.forEach(position => {
       const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-      wheel.position.set(...position);
+      wheel.position.copy(position);
       wheel.rotation.z = Math.PI / 2;
       wheel.castShadow = true;
       this.wheels.push(wheel);
@@ -63,7 +65,7 @@ export class Car {
   public update(delta: number) {
     // Apply velocity to position
     this.mesh.position.add(this.velocity.clone().multiplyScalar(delta));
-    
+
     // Apply friction
     this.velocity.multiplyScalar(0.95);
   }
@@ -80,7 +82,7 @@ export class Car {
   public updateBullets(delta: number, terrain: Terrain) {
     this.bullets = this.bullets.filter(bullet => {
       bullet.update(delta);
-      
+
       // Check terrain collision
       if (terrain.checkCollision(bullet.position)) {
         bullet.dispose();
