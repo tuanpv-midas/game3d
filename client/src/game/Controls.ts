@@ -20,6 +20,7 @@ export class Controls {
   private targetCameraOffset: THREE.Vector3;
   private currentLookAt: THREE.Vector3;
   private targetLookAt: THREE.Vector3;
+  private isPointerLocked: boolean;
 
   constructor(car: Car, camera: THREE.PerspectiveCamera, domElement: HTMLElement) {
     this.car = car;
@@ -31,6 +32,7 @@ export class Controls {
     this.cameraOffset = new THREE.Vector3(0, 3, -8); // Third person view
     this.firstPersonOffset = new THREE.Vector3(0, 1.5, 0.5); // First person view (from cabin)
     this.isFirstPerson = false;
+    this.isPointerLocked = false;
 
     // Initialize new camera parameters
     this.zoomLevel = 1;
@@ -48,9 +50,21 @@ export class Controls {
     document.addEventListener('wheel', this.onMouseWheel.bind(this));
     document.addEventListener('click', this.onMouseClick.bind(this));
 
-    // Lock pointer for FPS-style camera
-    domElement.addEventListener('click', () => {
-      domElement.requestPointerLock();
+    // Setup pointer lock with error handling
+    document.addEventListener('pointerlockchange', () => {
+      this.isPointerLocked = document.pointerLockElement === this.domElement;
+    });
+
+    this.domElement.addEventListener('click', () => {
+      if (document.pointerLockElement !== this.domElement) {
+        try {
+          this.domElement.requestPointerLock();
+        } catch (error) {
+          console.warn('Pointer lock not available:', error);
+          // Continue without pointer lock
+          this.isPointerLocked = false;
+        }
+      }
     });
   }
 
@@ -171,7 +185,7 @@ export class Controls {
   }
 
   private onMouseMove(event: MouseEvent) {
-    if (document.pointerLockElement) {
+    if (this.isPointerLocked) {
       // Limit horizontal view to 180 degrees
       this.mousePosition.x = Math.clamp(
         this.mousePosition.x + event.movementX * 0.003,
@@ -198,7 +212,7 @@ export class Controls {
   }
 
   private onMouseClick() {
-    if (document.pointerLockElement) {
+    if (this.isPointerLocked) {
       this.car.shoot();
       // Add camera shake effect when shooting
       this.cameraShake = 0.5;
