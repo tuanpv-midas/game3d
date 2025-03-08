@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { Bullet } from './Bullet';
 import { Terrain } from './Terrain';
+import { HealthSystem } from './Health';
+import { WeaponSystem, BulletType } from './Weapon';
 
 export class Car {
   public mesh: THREE.Group;
@@ -8,13 +10,15 @@ export class Car {
   private wheels: THREE.Mesh[];
   private turret: THREE.Mesh;
   private bullets: Bullet[];
+  private healthSystem: HealthSystem;
+  private weaponSystem: WeaponSystem;
 
   public velocity: THREE.Vector3;
   public acceleration: number;
   public maxSpeed: number;
   public turnSpeed: number;
 
-  // New physics parameters
+  // Physics parameters
   private friction: number;
   private brakeForce: number;
   private turnFriction: number;
@@ -23,6 +27,10 @@ export class Car {
   constructor() {
     this.mesh = new THREE.Group();
     this.bullets = [];
+
+    // Initialize systems
+    this.healthSystem = new HealthSystem(100);
+    this.weaponSystem = new WeaponSystem();
 
     // Car body
     const bodyGeometry = new THREE.BoxGeometry(2, 1, 4);
@@ -65,16 +73,18 @@ export class Car {
     this.velocity = new THREE.Vector3();
 
     // Optimized physics parameters
-    this.acceleration = 15; // Increased for better responsiveness
-    this.maxSpeed = 25; // Slightly increased
-    this.turnSpeed = 2.5; // Adjusted for better turning
-    this.friction = 0.98; // Ground friction (1 = no friction)
-    this.brakeForce = 0.85; // Brake effectiveness (lower = stronger brakes)
-    this.turnFriction = 0.95; // Additional friction when turning
+    this.acceleration = 15;
+    this.maxSpeed = 25;
+    this.turnSpeed = 2.5;
+    this.friction = 0.98;
+    this.brakeForce = 0.85;
+    this.turnFriction = 0.95;
     this.currentSpeed = 0;
   }
 
   public update(delta: number) {
+    if (!this.healthSystem.isAlive()) return;
+
     // Calculate current speed
     this.currentSpeed = this.velocity.length();
 
@@ -105,12 +115,17 @@ export class Car {
   }
 
   public shoot() {
-    const bullet = new Bullet(
+    if (!this.healthSystem.isAlive()) return;
+
+    const bullet = this.weaponSystem.fire(
       this.mesh.position.clone(),
       this.mesh.getWorldDirection(new THREE.Vector3()),
       this.turret.getWorldPosition(new THREE.Vector3())
     );
-    this.bullets.push(bullet);
+
+    if (bullet) {
+      this.bullets.push(bullet);
+    }
   }
 
   public updateBullets(delta: number, terrain: Terrain) {
@@ -119,6 +134,10 @@ export class Car {
 
       // Check terrain collision
       if (terrain.checkCollision(bullet.position)) {
+        // Create explosion effect for explosive ammo
+        if (bullet.getType() === BulletType.EXPLOSIVE) {
+          this.createExplosion(bullet.position.clone());
+        }
         bullet.dispose();
         return false;
       }
@@ -133,8 +152,76 @@ export class Car {
     });
   }
 
+  private createExplosion(position: THREE.Vector3) {
+    // Create particle effect for explosion
+    const particleCount = 20;
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+    const velocities = [];
+
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (Math.PI * 2 * i) / particleCount;
+      const radius = 0.5;
+      positions.push(
+        position.x + Math.cos(angle) * radius,
+        position.y,
+        position.z + Math.sin(angle) * radius
+      );
+      velocities.push(
+        Math.cos(angle) * 2,
+        2,
+        Math.sin(angle) * 2
+      );
+    }
+
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+
+    const material = new THREE.PointsMaterial({
+      color: 0xff6600,
+      size: 0.2,
+      transparent: true
+    });
+
+    const particles = new THREE.Points(geometry, material);
+    this.mesh.parent?.add(particles);
+
+    // Animate and remove after 1 second
+    setTimeout(() => {
+      this.mesh.parent?.remove(particles);
+      geometry.dispose();
+      material.dispose();
+    }, 1000);
+  }
+
   public brake() {
     this.velocity.multiplyScalar(this.brakeForce);
+  }
+
+  public takeDamage(amount: number) {
+    const isDestroyed = this.healthSystem.takeDamage(amount);
+    if (isDestroyed) {
+      this.createExplosion(this.mesh.position);
+    }
+  }
+
+  public heal(amount: number) {
+    this.healthSystem.heal(amount);
+  }
+
+  public addArmor(amount: number) {
+    this.healthSystem.addArmor(amount);
+  }
+
+  public setBulletType(type: BulletType) {
+    this.weaponSystem.setBulletType(type);
+  }
+
+  public getHealth(): number {
+    return this.healthSystem.getHealth();
+  }
+
+  public getArmor(): number {
+    return this.healthSystem.getArmor();
   }
 
   public dispose() {
