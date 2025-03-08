@@ -98,28 +98,6 @@ export class Game {
           </div>
         </div>
 
-  private animate = () => {
-    requestAnimationFrame(this.animate);
-
-    const delta = this.clock.getDelta();
-
-    // Update game objects
-    this.car.update(delta);
-    this.controls.update();
-
-    // Update bullets and check collisions
-    this.car.updateBullets(delta, this.terrain);
-
-    // Update power-ups
-    this.updatePowerUps(delta);
-
-    // Update HUD
-    this.updateHUD();
-
-    // Render scene
-    this.renderer.render(this.scene, this.camera);
-  };
-
         <div id="weapon-cooldown" class="bar-container">
           <div>Weapon Ready</div>
           <div class="bar-background">
