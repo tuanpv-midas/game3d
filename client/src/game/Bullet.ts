@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BulletType } from './Weapon';
+import { BulletType } from './WeaponSystem';
 
 export class Bullet {
   public mesh: THREE.Mesh;

@@ -1,4 +1,14 @@
-class WeaponSystem {
+import * as THREE from 'three';
+import { Bullet } from './Bullet';
+
+export enum BulletType {
+  NORMAL = 'normal',
+  EXPLOSIVE = 'explosive',
+  LASER = 'laser',
+  MISSILE = 'missile'
+}
+
+export class WeaponSystem {
   private lastFireTime: number;
   private cooldown: number;
   private bulletType: BulletType;
