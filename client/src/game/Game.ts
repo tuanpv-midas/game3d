@@ -329,13 +329,23 @@ export class Game {
             // Handle explosion for explosive ammo
             if (bullet.getType() === BulletType.EXPLOSIVE) {
               this.createAreaEffect(bullet.position.clone(), 5, enemies => {
-                enemies.forEach(e => e.takeDamage(bullet.getDamage() * 0.5));
+                enemies.forEach(e => {
+                  if (e && typeof e.takeDamage === 'function') {
+                    e.takeDamage(bullet.getDamage() * 0.5);
+                  }
+                });
               });
             }
 
             enemy.takeDamage(bullet.getDamage());
-            this.car.weaponSystem.recycleBullet(bullet);
+            
+            // Mark as inactive first before recycling to prevent race conditions
             bullet.isActive = false;
+            
+            // Safely recycle the bullet
+            if (this.car && this.car.weaponSystem) {
+              this.car.weaponSystem.recycleBullet(bullet);
+            }
             break;
           }
         }

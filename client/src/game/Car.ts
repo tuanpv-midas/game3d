@@ -253,8 +253,20 @@ export class Car {
   }
   
   private recycleInactiveBullet(bullet: Bullet): void {
-    // Recycle the bullet through the weapon system
-    this.weaponSystem.recycleBullet(bullet);
+    try {
+      // Recycle the bullet through the weapon system
+      if (this.weaponSystem) {
+        this.weaponSystem.recycleBullet(bullet);
+      } else {
+        // Fallback if weapon system not available
+        if (bullet.mesh.parent) {
+          bullet.mesh.parent.remove(bullet.mesh);
+        }
+        bullet.dispose();
+      }
+    } catch (error) {
+      console.warn("Error recycling bullet:", error);
+    }
   }
 
   private createExplosion(position: THREE.Vector3) {

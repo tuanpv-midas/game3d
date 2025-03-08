@@ -81,20 +81,19 @@ class WeaponSystem {
   }
 
   public recycleBullet(bullet: Bullet): void {
-    bullet.isActive = false;
-    bullet.mesh.visible = false;
+    // Remove from scene if needed
+    if (bullet.mesh.parent) {
+      bullet.mesh.parent.remove(bullet.mesh);
+    }
 
-    // Add to pool if not already there
-    if (!this.bulletPool.includes(bullet)) {
-      // If pool is full, remove oldest bullet
-      if (this.bulletPool.length >= this.maxPoolSize) {
-        const oldestBullet = this.bulletPool.shift();
-        if (oldestBullet && this.scene) {
-          this.scene.remove(oldestBullet.mesh);
-          oldestBullet.dispose();
-        }
-      }
+    // Don't exceed pool size
+    if (this.bulletPool.length < this.maxPoolSize) {
+      // Reset the bullet to reuse later
+      bullet.reset(new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), BulletType.NORMAL, 10);
       this.bulletPool.push(bullet);
+    } else {
+      // If pool is full, dispose bullet properly
+      bullet.dispose();
     }
   }
 
