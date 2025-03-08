@@ -14,6 +14,12 @@ export class Car {
   public maxSpeed: number;
   public turnSpeed: number;
 
+  // New physics parameters
+  private friction: number;
+  private brakeForce: number;
+  private turnFriction: number;
+  private currentSpeed: number;
+
   constructor() {
     this.mesh = new THREE.Group();
     this.bullets = [];
@@ -57,17 +63,45 @@ export class Car {
     // Initial position and physics properties
     this.mesh.position.set(0, 1, 0);
     this.velocity = new THREE.Vector3();
-    this.acceleration = 10;
-    this.maxSpeed = 20;
-    this.turnSpeed = 2;
+
+    // Optimized physics parameters
+    this.acceleration = 15; // Increased for better responsiveness
+    this.maxSpeed = 25; // Slightly increased
+    this.turnSpeed = 2.5; // Adjusted for better turning
+    this.friction = 0.98; // Ground friction (1 = no friction)
+    this.brakeForce = 0.85; // Brake effectiveness (lower = stronger brakes)
+    this.turnFriction = 0.95; // Additional friction when turning
+    this.currentSpeed = 0;
   }
 
   public update(delta: number) {
+    // Calculate current speed
+    this.currentSpeed = this.velocity.length();
+
     // Apply velocity to position
     this.mesh.position.add(this.velocity.clone().multiplyScalar(delta));
 
+    // Apply dynamic friction based on speed and turning
+    let currentFriction = this.friction;
+
+    // More friction when turning at high speeds
+    if (this.currentSpeed > this.maxSpeed * 0.5) {
+      currentFriction *= this.turnFriction;
+    }
+
+    // Progressive friction at higher speeds
+    if (this.currentSpeed > this.maxSpeed * 0.8) {
+      currentFriction *= 0.95;
+    }
+
     // Apply friction
-    this.velocity.multiplyScalar(0.95);
+    this.velocity.multiplyScalar(currentFriction);
+
+    // Update wheels rotation based on speed
+    const wheelRotationSpeed = this.currentSpeed * 2;
+    this.wheels.forEach(wheel => {
+      wheel.rotation.x += wheelRotationSpeed * delta;
+    });
   }
 
   public shoot() {
@@ -97,6 +131,10 @@ export class Car {
 
       return true;
     });
+  }
+
+  public brake() {
+    this.velocity.multiplyScalar(this.brakeForce);
   }
 
   public dispose() {

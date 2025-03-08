@@ -36,33 +36,44 @@ export class Controls {
   }
 
   public update() {
-    // Handle car movement
+    const currentSpeed = this.car.velocity.length();
+    const direction = this.car.mesh.getWorldDirection(new THREE.Vector3());
+
+    // Optimized forward/backward movement
     if (this.keys['w']) {
-      const direction = this.car.mesh.getWorldDirection(new THREE.Vector3());
-      this.car.velocity.add(direction.multiplyScalar(this.car.acceleration * 0.1));
+      // Progressive acceleration based on current speed
+      const accelerationFactor = Math.max(0.5, 1 - currentSpeed / this.car.maxSpeed);
+      this.car.velocity.add(direction.multiplyScalar(this.car.acceleration * 0.1 * accelerationFactor));
     }
     if (this.keys['s']) {
-      const direction = this.car.mesh.getWorldDirection(new THREE.Vector3());
-      this.car.velocity.sub(direction.multiplyScalar(this.car.acceleration * 0.1));
-    }
-    if (this.keys['a']) {
-      this.car.mesh.rotation.y += this.car.turnSpeed * 0.05;
-    }
-    if (this.keys['d']) {
-      this.car.mesh.rotation.y -= this.car.turnSpeed * 0.05;
-    }
-    if (this.keys[' ']) { // Space for brake
-      this.car.velocity.multiplyScalar(0.9);
-    }
-    if (this.keys['v']) { // Toggle view
-      this.isFirstPerson = !this.isFirstPerson;
-      this.keys['v'] = false; // Reset to prevent multiple toggles
+      // Reverse speed is slower than forward
+      const reverseAcceleration = this.car.acceleration * 0.06;
+      this.car.velocity.sub(direction.multiplyScalar(reverseAcceleration));
     }
 
-    // Limit speed
-    const speed = this.car.velocity.length();
-    if (speed > this.car.maxSpeed) {
-      this.car.velocity.multiplyScalar(this.car.maxSpeed / speed);
+    // Optimized turning
+    if (this.keys['a'] || this.keys['d']) {
+      // Reduce turn speed at higher speeds
+      const turnSpeedFactor = Math.max(0.4, 1 - currentSpeed / this.car.maxSpeed);
+      const turnAmount = this.car.turnSpeed * 0.05 * turnSpeedFactor;
+
+      if (this.keys['a']) {
+        this.car.mesh.rotation.y += turnAmount;
+      }
+      if (this.keys['d']) {
+        this.car.mesh.rotation.y -= turnAmount;
+      }
+    }
+
+    // Enhanced braking
+    if (this.keys[' ']) {
+      this.car.brake();
+    }
+
+    // Toggle view
+    if (this.keys['v']) {
+      this.isFirstPerson = !this.isFirstPerson;
+      this.keys['v'] = false; // Reset to prevent multiple toggles
     }
 
     // Update camera position based on view mode
