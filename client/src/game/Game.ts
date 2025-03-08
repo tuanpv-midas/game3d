@@ -117,6 +117,32 @@ export class Game {
         width: 150px;
         height: 20px;
         background: rgba(0,0,0,0.5);
+
+  // Add a utility method to check if pointer lock is allowed
+  private isPointerLockAllowed(): boolean {
+    // Check if we're running in an iframe
+    const isInIframe = window !== window.top;
+    
+    // If in iframe, check if we have 'allow-pointer-lock' permission
+    if (isInIframe) {
+      // We can't directly check permissions, but we can try a test request
+      // and catch any security errors
+      try {
+        const testElement = document.createElement('div');
+        document.body.appendChild(testElement);
+        testElement.requestPointerLock();
+        document.exitPointerLock();
+        document.body.removeChild(testElement);
+        return true;
+      } catch (error) {
+        console.warn('Pointer lock is not allowed in this context:', error);
+        return false;
+      }
+    }
+    
+    return true; // Not in iframe, should be allowed
+  }
+
         border-radius: 10px;
         overflow: hidden;
       }

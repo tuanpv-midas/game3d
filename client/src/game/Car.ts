@@ -101,7 +101,7 @@ export class Car {
   }
 
   public shoot(): void {
-    if (!this.weaponSystem.canFire()) return;
+    if (!this.healthSystem.isAlive() || !this.weaponSystem.canFire()) return;
     
     // Get direction from turret rotation
     const direction = new THREE.Vector3(0, 0, -1);
@@ -196,8 +196,7 @@ export class Car {
     this.mesh.position.copy(nextPosition);
   }
 
-  public shoot() {
-    if (!this.healthSystem.isAlive()) return;
+  /* Method moved and combined with shoot(): void above */
 
     const bullet = this.weaponSystem.fire(
       this.mesh.position.clone(),

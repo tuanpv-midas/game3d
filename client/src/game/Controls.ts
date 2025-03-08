@@ -64,9 +64,12 @@ export class Controls {
         this.domElement.requestPointerLock();
       } catch (error) {
         console.warn('Pointer lock request failed:', error);
+        // Even if pointer lock fails, allow shooting
+        this.car.shoot();
+        this.cameraShake = 0.5;
       }
     } else {
-      // Only shoot when pointer is locked
+      // Shoot when pointer is locked
       this.car.shoot();
       // Add camera shake effect when shooting
       this.cameraShake = 0.5;
