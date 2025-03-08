@@ -88,33 +88,7 @@ export class Game {
     const hud = document.createElement('div');
     hud.id = 'game-hud';
 
-    // Add control instructions for sandboxed environment
-    const instructions = document.createElement('div');
-    instructions.id = 'control-instructions';
-    instructions.style.cssText = `
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.5);
-      color: white;
-      padding: 10px;
-      border-radius: 5px;
-      font-size: 14px;
-      pointer-events: none;
-      transition: opacity 1s;
-      opacity: 0.8;
-    `;
-    instructions.innerHTML = `
-      <div>Controls: WASD - Move, Space - Brake</div>
-      <div>Click to shoot, Click and drag to aim</div>
-      <div>V - Toggle camera view</div>
-    `;
-    hud.appendChild(instructions);
-
-    // Hide instructions after 10 seconds
-    setTimeout(() => {
-      instructions.style.opacity = '0';
-    }, 10000);
+    // Control instructions removed
 
     hud.style.position = 'absolute';
     hud.style.top = '20px';
